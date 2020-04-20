@@ -17,7 +17,7 @@ What this plugin currently can do:
 - [x] Search for animes
 - [x] View "My Watchlist"
 - [x] View "My Downloads"
-- [x] View "My Collection"
+- [ ] View "My Collection"
 - [x] View all available anime
 - [x] View all seasons/arcs of an anime
 - [x] View all episodes of an season/arc
