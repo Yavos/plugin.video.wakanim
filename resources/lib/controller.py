@@ -245,6 +245,43 @@ def myDownloads(args):
     view.endofdirectory(args)
 
 
+def myWatchlist(args):
+    """Show animes in personal watchlist
+    """
+    # get website
+    html = api.getPage(args, "https://www.wakanim.tv/" + args._country + "/v2/watchlist")
+    if not html:
+        view.add_item(args, {"title": args._addon.getLocalizedString(30041)})
+        view.endofdirectory(args)
+        return
+
+    # parse html
+    soup = BeautifulSoup(html, "html.parser")
+    container = soup.find_all("div", {"class": "container -half-padding"})[1]
+    if not container:
+        view.add_item(args, {"title": args._addon.getLocalizedString(30041)})
+        view.endofdirectory(args)
+        return
+
+    # for every list entry
+    for div in container.find_all("div", {"class": "slider_item_inner"}):
+        # get values
+        thumb = div.find("a", {"class": "slider_item_link"}).img["src"].replace(" ", "%20")
+        if thumb[:4] != "http":
+            thumb = "https:" + thumb
+
+        # add to view
+        view.add_item(args,
+                      {"url":    div.find("div", {"class": "slider_item_text"}).a["href"].replace("mydownloads/detail", "catalogue/show"),
+                       "title":  div.find("div", {"class": "slider_item_text"}).a.strong.string.strip(),
+                       "mode":   "list_season",
+                       "thumb":  thumb,
+                       "fanart": thumb},
+                      isFolder=True, mediatype="video")
+
+    view.endofdirectory(args)
+
+
 def listSeason(args):
     """Show all seasons/arcs of an anime
     """

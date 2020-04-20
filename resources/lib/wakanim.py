@@ -101,6 +101,8 @@ def check_mode(args):
         controller.myWatchlist(args)
     elif mode == "downloads":
         controller.myDownloads(args)
+    elif mode == "watchlist":
+        controller.myWatchlist(args)
     elif mode == "collection":
         controller.myCollection(args)
     elif mode == "list_season":
@@ -137,4 +139,7 @@ def showMainMenue(args):
     view.add_item(args,
                   {"title": args._addon.getLocalizedString(30022),
                    "mode":   "downloads"})
+    view.add_item(args,
+                  {"title": args._addon.getLocalizedString(30027),
+                   "mode":   "watchlist"})
     view.endofdirectory(args)
