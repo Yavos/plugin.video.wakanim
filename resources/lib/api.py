@@ -32,6 +32,7 @@ else:
     from cookielib import LWPCookieJar, Cookie
 
 import xbmc
+import xbmcvfs
 import xbmcgui
 
 
@@ -77,6 +78,12 @@ def getPage(args, url, data=None):
     response = urlopen(url, data)
     html = getHTML(response)
 
+    if "Request unsuccessful. Incapsula incident ID:" in html:
+        xbmc.log("[Wakanim] Website hidden behind captcha. No login possible.", xbmc.LOGERROR)
+        xbmc.log(html, xbmc.LOGINFO)
+        #To-Do: Fix this somehow...
+        return ""
+
     # check if loggedin
     if isLoggedin(html):
         return html
@@ -91,6 +98,7 @@ def getPage(args, url, data=None):
 
     # get security tokens
     soup = BeautifulSoup(html, "html.parser")
+    xbmc.log(html, xbmc.LOGINFO)
     form = soup.find_all("form", {"class": "nav-user_login"})[0]
     for inputform in form.find_all("input", {"type": "hidden"}):
         if inputform.get("name") == u"RememberMe":
@@ -155,7 +163,7 @@ def getCookies(args):
 def getCookiePath(args):
     """Get cookie file path
     """
-    profile_path = xbmc.translatePath(args._addon.getAddonInfo("profile"))
+    profile_path = xbmcvfs.translatePath(args._addon.getAddonInfo("profile"))
     if args.PY2:
         return os.path.join(profile_path.decode("utf-8"), u"cookies.lwp")
     else:
