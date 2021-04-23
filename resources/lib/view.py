@@ -23,6 +23,7 @@ if PY3:
 else:
     from urllib import quote_plus
 
+import xbmcvfs
 import xbmc
 import xbmcvfs
 import xbmcgui
