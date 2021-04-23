@@ -81,12 +81,9 @@ def getPage(args, url, data=None):
     # get page
     response = urlopen(url, data)
     html = getHTML(response)
-
-    if '/_Incapsula_Resource?' in html:
-        xbmc.log("[Wakanim] Website hidden behind captcha. No login possible.", xbmc.LOGERROR)
-        xbmc.log(html, xbmc.LOGINFO)
-        #To-Do: Fix this somehow...
-        return ""
+    xbmc.log('[Wakanim-Debug] cookies:', xbmc.LOGINFO)
+    for c in args._cj:
+        xbmc.log('[Wakanim-Debug]' + str(c), xbmc.LOGINFO)
 
     # check if loggedin
     if isLoggedin(html):
@@ -97,14 +94,22 @@ def getPage(args, url, data=None):
     password = args._addon.getSetting("wakanim_password")
 
     if '/_Incapsula_Resource?' in html:
+        xbmc.log("[Wakanim] Website hidden behind captcha. Trying to resolve this in Kodi.", xbmc.LOGWARNING)
+        xbmc.log("[Wakanin-Debug]html:\n" + html, xbmc.LOGINFO)
         if not "iframe" in html:
             #Auto remove cookie and wait because of the protection
-            xbmc.log("[PLUGIN] %s: Cookie Removed" % (args._addonname), xbmc.LOGERROR)
-            xbmcvfs.delete(args._addon.getAddonInfo("profile") + "/cookies.lwp")
+            xbmc.log("[PLUGIN] %s: insufficient data. Trying again and removing cookie..." % (args._addonname), xbmc.LOGERROR)
+            for c in args._cj:
+                if c.name.startswith("incap_ses_") or c.name.startswith("visid_incap_"):
+                    xbmc.log('[Wakanim-Debug] deleting ' + str(c), xbmc.LOGINFO)
+                    args._cj.clear(c.domain, c.path, c.name)
+                else:
+                    xbmc.log('[Wakanim-Debug] keeping: ' + c.name)
             xbmc.sleep(5000)
 
             response = urlopen(url, data)
             html = getHTML(response)
+            xbmc.log("[Wakanin-Debug]html (second try):\n" + html, xbmc.LOGINFO)
 
         urlCaptcha = "https://www.wakanim.tv" + re.search('<iframe id="main-iframe" src="(.+?)"',html).group(1)
         response = urlopen(urlCaptcha)
