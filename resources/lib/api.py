@@ -78,7 +78,7 @@ def getPage(args, url, data=None):
     response = urlopen(url, data)
     html = getHTML(response)
 
-    if "Request unsuccessful. Incapsula incident ID:" in html:
+    if '/_Incapsula_Resource?' in html:
         xbmc.log("[Wakanim] Website hidden behind captcha. No login possible.", xbmc.LOGERROR)
         xbmc.log(html, xbmc.LOGINFO)
         #To-Do: Fix this somehow...
@@ -98,7 +98,6 @@ def getPage(args, url, data=None):
 
     # get security tokens
     soup = BeautifulSoup(html, "html.parser")
-    xbmc.log(html, xbmc.LOGINFO)
     form = soup.find_all("form", {"class": "nav-user_login"})[0]
     for inputform in form.find_all("input", {"type": "hidden"}):
         if inputform.get("name") == u"RememberMe":
