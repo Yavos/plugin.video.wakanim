@@ -167,7 +167,7 @@ def IncapsulaWrapper(args, url, data=None):
             if len(html) < 5000:
                 xbmc.log("[Wakanin-Debug]html (second try):\n" + html, xbmc.LOGINFO)
         if len(html) >= 5000:
-            xbmc.log(["Wakanim-Debug] not sure what happened with incapsula. look into incapsula.html in profile directory"], xbmc.LOGWARNING)
+            xbmc.log("[Wakanim-Debug] not sure what happened with incapsula. look into incapsula.html in profile directory", xbmc.LOGWARNING)
             with xbmcvfs.File(os.path.join(xbmcvfs.translatePath(args._addon.getAddonInfo("profile")), "incapsula.html"), 'w') as f:
                 f.write(html)
             return response, html
