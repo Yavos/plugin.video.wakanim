@@ -91,7 +91,13 @@ def parse_stream_config(html, prefix):
             quote = True
         result += c
         i += 1
-    return json.loads("{" + result)
+    return json.loads(clean_json("{" + result))
+
+
+def clean_json(string):
+    string = re.sub(",[ \t\r\n]+}", "}", string)
+    string = re.sub(",[ \t\r\n]+\]", "]", string)
+    return string
 
 
 def enc(s):
