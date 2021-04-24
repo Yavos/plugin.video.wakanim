@@ -20,6 +20,7 @@ import sys
 from cgi import parse_header
 from bs4 import BeautifulSoup
 from time import timezone
+from resources.lib import librecaptcha
 
 PY3 = sys.version_info.major >= 3
 if PY3:
@@ -47,7 +48,7 @@ def start(args):
 
     # lets urllib handle cookies
     opener = build_opener(HTTPCookieProcessor(args._cj))
-    opener.addheaders = [("User-Agent",      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.62 Safari/537.36"),
+    opener.addheaders = [("User-Agent",      UA),
                          ("Accept-Encoding", "identity"),
                          ("Accept-Charset",  "utf-8"),
                          ("DNT",             "1")]
@@ -79,11 +80,7 @@ def getPage(args, url, data=None):
 
     # check if loggedin
     # get page
-    response = urlopen(url, data)
-    html = getHTML(response)
-    xbmc.log('[Wakanim-Debug] cookies:', xbmc.LOGINFO)
-    for c in args._cj:
-        xbmc.log('[Wakanim-Debug]' + str(c), xbmc.LOGINFO)
+    response, html = IncapsulaWrapper(args, url, data)
 
     # check if loggedin
     if isLoggedin(html):
@@ -92,42 +89,6 @@ def getPage(args, url, data=None):
     # get account informations
     username = args._addon.getSetting("wakanim_username")
     password = args._addon.getSetting("wakanim_password")
-
-    if '/_Incapsula_Resource?' in html:
-        xbmc.log("[Wakanim] Website hidden behind captcha. Trying to resolve this in Kodi.", xbmc.LOGWARNING)
-        xbmc.log("[Wakanin-Debug]html:\n" + html, xbmc.LOGINFO)
-        if not "iframe" in html:
-            #Auto remove cookie and wait because of the protection
-            xbmc.log("[PLUGIN] %s: insufficient data. Trying again and removing cookie..." % (args._addonname), xbmc.LOGERROR)
-            for c in args._cj:
-                if c.name.startswith("incap_ses_") or c.name.startswith("visid_incap_"):
-                    xbmc.log('[Wakanim-Debug] deleting ' + str(c), xbmc.LOGINFO)
-                    args._cj.clear(c.domain, c.path, c.name)
-                else:
-                    xbmc.log('[Wakanim-Debug] keeping: ' + c.name)
-            xbmc.sleep(5000)
-
-            response = urlopen(url, data)
-            html = getHTML(response)
-            xbmc.log("[Wakanin-Debug]html (second try):\n" + html, xbmc.LOGINFO)
-
-        urlCaptcha = "https://www.wakanim.tv" + re.search('<iframe id="main-iframe" src="(.+?)"',html).group(1)
-        response = urlopen(urlCaptcha)
-        html = getHTML(response)
-
-        sUrl = "https://www.wakanim.tv" + re.search('"POST"\, "(.+?)"',html).group(1)
-
-        from resources.lib import librecaptcha
-        test = librecaptcha.get_token(api_key="6Ld38BkUAAAAAPATwit3FXvga1PI6iVTb6zgXw62", site_url=urlCaptcha, user_agent=UA,
-                                      gui=False, debug=False)
-
-        logindict = {"g-recaptcha-response" : test}
-        dataCap = urlencode(logindict)
-        response = urlopen(sUrl, dataCap.encode(getCharset(response)))
-        html = getHTML(response)
-
-        response = urlopen(url)
-        html = getHTML(response)
 
     logindict = {"Username":   username,
                  "Password":   password,
@@ -144,11 +105,11 @@ def getPage(args, url, data=None):
 
     # POST to login page
     post_data = urlencode(logindict)
-    response = urlopen("https://www.wakanim.tv/" + args._country + "/v2/account/login?ReturnUrl=" + quote_plus(url.replace("https://www.wakanim.tv", "")),
+    response = IncapsulaWrapper(args, "https://www.wakanim.tv/" + args._country + "/v2/account/login?ReturnUrl=" + quote_plus(url.replace("https://www.wakanim.tv", "")),
                        post_data.encode(getCharset(response)))
 
     # get page again
-    response = urlopen(url, data)
+    response = IncapsulaWrapper(args, url, data)
     html = getHTML(response)
 
     # 2FA required
@@ -180,6 +141,59 @@ def getPage(args, url, data=None):
         xbmcgui.Dialog().ok(args._addonname, args._addon.getLocalizedString(30040))
         return ""
 
+
+def IncapsulaWrapper(args, url, data=None):
+    response = urlopen(url, data)
+    html = getHTML(response)
+
+    #captcha blocked?
+    if '/_Incapsula_Resource?' in html:
+        xbmc.log("[Wakanim] Website hidden behind captcha. Trying to resolve this in Kodi.", xbmc.LOGWARNING)
+        if len(html) < 5000:
+            xbmc.log("[Wakanin-Debug]html:\n" + html, xbmc.LOGINFO)
+        if not "iframe" in html: #this should only happen once
+            #auto remove incapsula cookies and wait because of the protection
+            xbmc.log("[PLUGIN] %s: insufficient data. Trying again and removing cookie..." % (args._addonname), xbmc.LOGERROR)
+            for c in args._cj:
+                if c.name.startswith("incap_ses_") or c.name.startswith("visid_incap_"):
+                    xbmc.log('[Wakanim-Debug] deleting ' + str(c), xbmc.LOGINFO)
+                    args._cj.clear(c.domain, c.path, c.name)
+                else:
+                    xbmc.log('[Wakanim-Debug] keeping: ' + c.name)
+            xbmc.sleep(5000)
+
+            response = urlopen(url, data)
+            html = getHTML(response)
+            if len(html) < 5000:
+                xbmc.log("[Wakanin-Debug]html (second try):\n" + html, xbmc.LOGINFO)
+        if len(html) >= 5000:
+            xbmc.log(["Wakanim-Debug] not sure what happened with incapsula. look into incapsula.html in profile directory"], xbmc.LOGWARNING)
+            with xbmcvfs.File(os.path.join(xbmcvfs.translatePath(args._addon.getAddonInfo("profile")), "incapsula.html"), 'w') as f:
+                f.write(html)
+            return response, html
+
+
+        #handle captcha
+        soup = BeautifulSoup(html, "html.parser")
+        urlCaptcha = "https://www.wakanim.tv" + soup.find("iframe", {"id": "main-iframe"})["src"] #re.search('<iframe id="main-iframe" src="(.+?)"',html).group(1)
+        response = urlopen(urlCaptcha)
+        html = getHTML(response)
+
+        sUrl = "https://www.wakanim.tv" + re.search('"POST"\, "(.+?)"',html).group(1)
+
+        test = librecaptcha.get_token(api_key="6Ld38BkUAAAAAPATwit3FXvga1PI6iVTb6zgXw62", site_url=urlCaptcha, user_agent=UA,
+                                      gui=False, debug=False)
+
+        logindict = {"g-recaptcha-response" : test}
+        dataCap = urlencode(logindict)
+        response = urlopen(sUrl, dataCap.encode(getCharset(response)))
+        html = getHTML(response)
+
+        #done - html requests do work now.
+        response = urlopen(url)
+        html = getHTML(response)
+
+    return response, html
 
 def isLoggedin(html):
     """Check if user logged in
